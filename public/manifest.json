@@ -15,13 +15,23 @@
   "sandbox": {
     "pages": ["model.html"]
   },
+  "content_scripts": [
+    {
+      "matches": ["*://www.youtube.com/watch*"],
+      "js": ["content-script.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "permissions": [
+    "activeTab"
+  ],
   "web_accessible_resources": [
     {
-      "resources": ["model.html"],
+      "resources": ["model.html", "models/ad_detector.onnx"],
       "matches": ["<all_urls>"]
     }
   ],
   "content_security_policy": {
-    "sandbox": "sandbox allow-scripts; script-src 'unsafe-eval';" 
+    "sandbox": "sandbox allow-scripts; script-src 'unsafe-eval';"
   }
 }
