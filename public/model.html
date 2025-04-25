@@ -1,28 +1,61 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Ad Detector Model Test</title>
+    <title>Ad Detector Model</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            margin: 20px;
+            margin: 10px;
+            background-color: #f5f5f5;
         }
-        #log {
-            border: 1px solid #ccc;
+        #status {
             padding: 10px;
+            border-radius: 4px;
+            background-color: #e0e0e0;
+            margin-bottom: 10px;
+        }
+        .log-container {
             height: 200px;
             overflow-y: auto;
-            margin-top: 10px;
-            background-color: #f9f9f9;
+            border: 1px solid #ccc;
+            padding: 8px;
+            background-color: #fff;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .log-entry {
+            margin: 2px 0;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 2px;
         }
     </style>
+    <!-- ONNX Runtime Web -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/onnxruntime-web/1.14.0/ort.min.js"></script>
 </head>
 <body>
-    <h2>Ad Detector Model Test</h2>
-    <button id="testButton">Load Model</button>
-    <div id="log"></div>
-
-    <script src="ort.js"></script>
-    <script src="model-test.js"></script>
+    <div id="status">Initializing ad detection model...</div>
+    
+    <div class="log-container" id="log">
+        <div class="log-entry">Ad Detector Sandbox initialized</div>
+    </div>
+    
+    <!-- Our ad detection model handler -->
+    <script src="ad-detector.js"></script>
+    
+    <script>
+        // Add a helper for logging
+        function log(message) {
+            const logContainer = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.textContent = message;
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+            console.log('[Ad Detector Sandbox]', message);
+        }
+        
+        // Initial log entry
+        log('Sandbox page loaded');
+    </script>
 </body>
 </html>

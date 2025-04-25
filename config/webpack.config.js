@@ -10,6 +10,7 @@ const config = (env, argv) =>
   merge(common, {
     entry: {
       "content-script": PATHS.src + "/content-script.js",
+      background: PATHS.src + "/background.js",
     },
     devtool: argv.mode === "production" ? false : "source-map",
   });
