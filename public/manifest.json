@@ -32,7 +32,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["model.html", "ad-detector.js", "models/*"],
+      "resources": ["model.html", "ad-detector.js", "assets/models/*", "assets/onnx/*"],
       "matches": ["<all_urls>"]
     }
   ],

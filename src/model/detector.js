@@ -2,7 +2,7 @@
 // This script runs in the sandboxed page to load and use the ONNX model
 
 // Configuration
-const MODEL_PATH = "models/ad_detector.onnx";
+const MODEL_PATH = "assets/models/ad_detector.onnx";
 const TEMPORAL_WINDOW = 5; // Number of frames to analyze at once (based on model training)
 const FRAME_DIMS = [224, 224]; // Model expects 224x224 frames
 

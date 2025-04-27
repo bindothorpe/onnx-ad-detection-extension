@@ -15,13 +15,39 @@ Key components:
 - Chrome Extension API for browser integration
 - Video frame extraction and processing
 
+## Repository Structure
+
+```
+/
+├── src/                        # All source code
+│   ├── background/             # Background script
+│   ├── content/                # Content scripts
+│   ├── popup/                  # Popup UI
+│   ├── model/                  # Model handling
+│   └── utils/                  # Shared utilities
+├── public/                     # Static assets
+│   ├── manifest.json           # Extension manifest
+│   ├── popup.html              # Popup UI HTML
+│   ├── model.html              # Sandboxed model page
+│   ├── icons/                  # Extension icons
+│   └── assets/                 # Organized assets
+│       ├── models/             # ML models
+│       └── onnx/               # ONNX runtime files
+├── config/                     # Build configuration
+├── tests/                      # Testing scripts
+├── docs/                       # Documentation
+│   ├── DEVELOPMENT.md          # Developer guide
+│   └── USAGE.md                # User guide
+└── README.md                   # This file
+```
+
 ## Installation
 
 ### Development Setup
 
 1. Clone the repository:
    ```
-   git clone https://github.com/yourusername/onnx-ad-detection-extension.git
+   git clone https://github.com/bindothorpe/onnx-ad-detection-extension.git
    cd onnx-ad-detection-extension
    ```
 
@@ -40,6 +66,13 @@ Key components:
    - Enable "Developer mode"
    - Click "Load unpacked"
    - Select the `build` directory
+
+## Documentation
+
+Comprehensive documentation is available in the `docs` directory:
+
+- [Development Guide](docs/DEVELOPMENT.md) - Setup instructions and information for developers
+- [Usage Guide](docs/USAGE.md) - Information for end users on how to use the extension
 
 ## Current Status
 
