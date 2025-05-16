@@ -4,12 +4,21 @@
 const debugToggle = document.getElementById("debug-toggle");
 const enabledToggle = document.getElementById("enabled-toggle");
 const statusElement = document.getElementById("status");
+const modelSelect = document.getElementById("model-select");
+const modelDescription = document.getElementById("model-description");
 
 // Initialize UI based on stored settings
 document.addEventListener("DOMContentLoaded", async () => {
+  // Populate model dropdown
+  populateModelDropdown();
+
   // Load stored settings
   try {
-    const settings = await chrome.storage.local.get(["debug", "enabled"]);
+    const settings = await chrome.storage.local.get([
+      "debug",
+      "enabled",
+      "selectedModelId",
+    ]);
 
     // Set debug toggle
     if (settings.debug !== undefined) {
@@ -25,10 +34,50 @@ document.addEventListener("DOMContentLoaded", async () => {
       enabledToggle.checked = true;
       updateStatusDisplay(true);
     }
+
+    // Set selected model
+    if (settings.selectedModelId) {
+      modelSelect.value = settings.selectedModelId;
+    } else {
+      modelSelect.value = window.DEFAULT_MODEL_ID;
+      // Save default model ID
+      await chrome.storage.local.set({
+        selectedModelId: window.DEFAULT_MODEL_ID,
+      });
+    }
+
+    // Update model description based on selection
+    updateModelDescription();
   } catch (error) {
     console.error("Error loading settings:", error);
   }
 });
+
+// Populate model dropdown with options
+function populateModelDropdown() {
+  // Clear existing options
+  modelSelect.innerHTML = "";
+
+  // Populate from global MODEL_CONFIGS
+  window.MODEL_CONFIGS.forEach((model) => {
+    const option = document.createElement("option");
+    option.value = model.id;
+    option.textContent = model.name;
+    modelSelect.appendChild(option);
+  });
+}
+
+// Update model description when selection changes
+function updateModelDescription() {
+  const selectedModelId = modelSelect.value;
+  const selectedModel = window.getModelConfigById(selectedModelId);
+
+  if (selectedModel) {
+    modelDescription.textContent = selectedModel.description;
+  } else {
+    modelDescription.textContent = "";
+  }
+}
 
 // Update status display
 function updateStatusDisplay(enabled) {
@@ -83,5 +132,26 @@ enabledToggle.addEventListener("change", async () => {
     }
   } catch (error) {
     console.error("Error saving enabled setting:", error);
+  }
+});
+
+// Handle model selection change
+modelSelect.addEventListener("change", async () => {
+  const selectedModelId = modelSelect.value;
+
+  // Update description
+  updateModelDescription();
+
+  // Save setting
+  try {
+    await chrome.storage.local.set({ selectedModelId: selectedModelId });
+
+    // Notify background script about model change
+    chrome.runtime.sendMessage({
+      type: "CHANGE_MODEL",
+      modelId: selectedModelId,
+    });
+  } catch (error) {
+    console.error("Error saving model selection:", error);
   }
 });

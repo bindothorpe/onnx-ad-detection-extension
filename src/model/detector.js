@@ -2,14 +2,14 @@
 // This script runs in the sandboxed page to load and use the ONNX model
 
 // Configuration
-const MODEL_PATH = "assets/models/ad_detector.onnx";
-const TEMPORAL_WINDOW = 5; // Number of frames to analyze at once (based on model training)
 const FRAME_DIMS = [224, 224]; // Model expects 224x224 frames
 
 // Model state
 let session = null;
 let isModelLoaded = false;
 let statusElement = document.getElementById("status");
+let currentModelId = window.DEFAULT_MODEL_ID;
+let currentModelConfig = window.getModelConfigById(currentModelId);
 
 // Updates status display
 function updateStatus(message) {
@@ -20,9 +20,27 @@ function updateStatus(message) {
 }
 
 // Load the ONNX model
-async function loadModel() {
+async function loadModel(modelId = window.DEFAULT_MODEL_ID) {
   try {
-    updateStatus("Loading ad detection model...");
+    // First check if we need to unload the existing model
+    if (session) {
+      try {
+        // Free resources from previous model
+        await session.release();
+        session = null;
+      } catch (error) {
+        console.warn("Error releasing previous model:", error);
+      }
+    }
+
+    // Get model configuration
+    currentModelId = modelId;
+    currentModelConfig = window.getModelConfigById(modelId);
+
+    // Update status
+    updateStatus(`Loading ${currentModelConfig.name} model...`);
+
+    const MODEL_PATH = currentModelConfig.path;
 
     // Fetch model file
     const response = await fetch(MODEL_PATH);
@@ -48,15 +66,25 @@ async function loadModel() {
     const inputName = session.inputNames[0];
     const outputName = session.outputNames[0];
 
-    console.log("Model loaded successfully:");
+    console.log(`Model ${currentModelConfig.name} loaded successfully:`);
     console.log("- Input:", inputName, session.inputNames);
     console.log("- Output:", outputName, session.outputNames);
 
     isModelLoaded = true;
-    updateStatus("Model ready for inference");
+    updateStatus(`${currentModelConfig.name} model ready for inference`);
 
     // Notify content script that model is ready
-    window.parent.postMessage({ type: "MODEL_LOADED", success: true }, "*");
+    window.parent.postMessage(
+      {
+        type: "MODEL_LOADED",
+        success: true,
+        modelId: currentModelId,
+        frameCount: currentModelConfig.frameCount,
+      },
+      "*"
+    );
+
+    return true;
   } catch (error) {
     console.error("Error loading model:", error);
     updateStatus(`Error loading model: ${error.message}`);
@@ -65,9 +93,11 @@ async function loadModel() {
         type: "MODEL_LOADED",
         success: false,
         error: error.message,
+        modelId: currentModelId,
       },
       "*"
     );
+    return false;
   }
 }
 
@@ -79,13 +109,27 @@ async function processFrames(frames, requestId) {
       requestId: requestId,
       success: false,
       error: "Model not loaded yet",
+      modelId: currentModelId,
     };
   }
 
   try {
-    // The model expects input in shape [batch, frames, channels, height, width]
-    // Batch size is 1 (we're processing one video segment at a time)
-    const inputShape = [1, TEMPORAL_WINDOW, 3, FRAME_DIMS[0], FRAME_DIMS[1]];
+    // The input shape differs based on model type
+    let inputShape;
+
+    if (currentModelConfig.type === "temporal") {
+      // Temporal model expects [batch, frames, channels, height, width]
+      inputShape = [
+        1,
+        currentModelConfig.frameCount,
+        3,
+        FRAME_DIMS[0],
+        FRAME_DIMS[1],
+      ];
+    } else {
+      // Standard model expects [batch, channels, height, width]
+      inputShape = [1, 3, FRAME_DIMS[0], FRAME_DIMS[1]];
+    }
 
     // Create input tensor
     const inputTensor = new ort.Tensor(
@@ -110,7 +154,8 @@ async function processFrames(frames, requestId) {
       requestId: requestId,
       success: true,
       probability: probability,
-      isAd: probability >= 0.5, // Threshold of 0.5
+      isAd: probability >= currentModelConfig.defaultThreshold,
+      modelId: currentModelId,
     };
   } catch (error) {
     console.error("Error during inference:", error);
@@ -119,6 +164,7 @@ async function processFrames(frames, requestId) {
       requestId: requestId,
       success: false,
       error: error.message,
+      modelId: currentModelId,
     };
   }
 }
@@ -134,9 +180,25 @@ window.addEventListener("message", async (event) => {
     case "INIT":
       // Initialize/load the model
       if (!isModelLoaded) {
-        await loadModel();
+        const modelId = message.modelId || window.DEFAULT_MODEL_ID;
+        await loadModel(modelId);
       } else {
-        window.parent.postMessage({ type: "MODEL_LOADED", success: true }, "*");
+        window.parent.postMessage(
+          {
+            type: "MODEL_LOADED",
+            success: true,
+            modelId: currentModelId,
+            frameCount: currentModelConfig.frameCount,
+          },
+          "*"
+        );
+      }
+      break;
+
+    case "CHANGE_MODEL":
+      // Switch to a different model
+      if (message.modelId && message.modelId !== currentModelId) {
+        await loadModel(message.modelId);
       }
       break;
 
@@ -149,10 +211,21 @@ window.addEventListener("message", async (event) => {
             requestId: message.requestId,
             success: false,
             error: "Invalid frames data",
+            modelId: currentModelId,
           },
           "*"
         );
         return;
+      }
+
+      // Check if we got the expected number of frames
+      const expectedFrames = currentModelConfig.frameCount;
+      const receivedFrames = message.frames.length;
+
+      if (receivedFrames !== expectedFrames) {
+        console.warn(
+          `Model expects ${expectedFrames} frames, but received ${receivedFrames}`
+        );
       }
 
       const result = await processFrames(message.frames, message.requestId);

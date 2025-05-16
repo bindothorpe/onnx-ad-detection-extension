@@ -2,7 +2,7 @@
 <html>
 <head>
     <title>Ad Detector Extension</title>
-    <link rel="stylesheet" href="popup.css">
+    <!-- <link rel="stylesheet" href="popup.css"> -->
     <style>
         body {
             width: 300px;
@@ -84,13 +84,46 @@
             color: #666;
             line-height: 1.5;
         }
+
+        .model-option {
+            margin: 15px 0;
+        }
+
+        .model-select {
+            width: 100%;
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            background-color: white;
+            font-size: 14px;
+        }
+
+        .model-description {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+            font-style: italic;
+        }
     </style>
+    
+    <!-- Include model configuration first -->
+    <script src="model-config.js"></script>
 </head>
 <body>
     <h1>Ad Detector Extension</h1>
     
     <div class="status-container">
         <strong>Status:</strong> <span id="status">Active</span>
+    </div>
+    
+    <div class="model-option">
+        <label for="model-select">Detection Model:</label>
+        <select id="model-select" class="model-select">
+            <!-- Options will be populated via JavaScript -->
+        </select>
+        <div id="model-description" class="model-description">
+            <!-- Model description will be populated via JavaScript -->
+        </div>
     </div>
     
     <div class="option">

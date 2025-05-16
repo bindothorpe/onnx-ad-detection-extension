@@ -5,7 +5,7 @@
 let DEBUG = true; // Debug mode (can be toggled)
 let ENABLED = true; // Extension enabled status (can be toggled)
 const FRAME_INTERVAL = 1000; // Process frames every 1 second
-const REQUIRED_FRAMES = 5; // Temporal window size from model
+let REQUIRED_FRAMES = 5; // Temporal window size from model - now changeable based on model
 const FRAME_SIZE = 224; // Target frame size (224x224)
 const AD_PROBABILITY_THRESHOLD = 0.2; // Threshold for ad detection
 
@@ -20,6 +20,7 @@ let requestIdCounter = 0;
 let pendingRequests = new Map();
 let detectionInterval = null;
 let lastProbability = 0;
+let currentModelId = null;
 
 // Advanced detection tracking
 const PROBABILITY_HISTORY_SIZE = 5; // Number of recent probabilities to keep
@@ -66,14 +67,35 @@ function handleSandboxMessage(event) {
     case "SANDBOX_READY":
       debugLog("Sandbox is ready");
       isSandboxReady = true;
-      // Initialize the model
-      sandboxFrame.contentWindow.postMessage({ type: "INIT" }, "*");
+
+      // Load model ID from storage
+      chrome.storage.local.get(["selectedModelId"], (result) => {
+        // Initialize the model
+        sandboxFrame.contentWindow.postMessage(
+          {
+            type: "INIT",
+            modelId: result.selectedModelId,
+          },
+          "*"
+        );
+      });
       break;
 
     case "MODEL_LOADED":
-      debugLog("Model loaded:", message.success);
+      debugLog("Model loaded:", message.success, "Model ID:", message.modelId);
       isModelLoaded = message.success;
-      if (!message.success) {
+
+      if (message.success) {
+        currentModelId = message.modelId;
+
+        // Update required frames based on model
+        if (message.frameCount !== undefined) {
+          REQUIRED_FRAMES = message.frameCount;
+          debugLog(
+            `Updated required frames to ${REQUIRED_FRAMES} for model ${currentModelId}`
+          );
+        }
+      } else {
         console.error("Failed to load model:", message.error);
       }
       break;
@@ -172,6 +194,22 @@ function createAdOverlay(videoElement) {
   probIndicator.style.border = "1px solid rgba(255, 255, 255, 0.2)";
   overlay.appendChild(probIndicator);
 
+  // Add model indicator
+  const modelIndicator = document.createElement("div");
+  modelIndicator.id = "model-indicator";
+  modelIndicator.style.position = "absolute";
+  modelIndicator.style.top = "10px";
+  modelIndicator.style.left = "10px";
+  modelIndicator.style.backgroundColor = "rgba(0, 0, 0, 0.7)";
+  modelIndicator.style.color = "white";
+  modelIndicator.style.padding = "6px 10px";
+  modelIndicator.style.borderRadius = "4px";
+  modelIndicator.style.fontFamily = "monospace";
+  modelIndicator.style.fontSize = "12px";
+  modelIndicator.style.border = "1px solid rgba(255, 255, 255, 0.2)";
+  modelIndicator.textContent = `Model: ${currentModelId || "Unknown"}`;
+  overlay.appendChild(modelIndicator);
+
   // Add "Powered by" badge
   const badge = document.createElement("div");
   badge.style.position = "absolute";
@@ -225,6 +263,12 @@ function showAdOverlay(videoElement, probability) {
                 <span style="color: ${color}; font-weight: bold;">${percentage}%</span>
             </div>
         `;
+  }
+
+  // Update model indicator
+  const modelIndicator = document.getElementById("model-indicator");
+  if (modelIndicator) {
+    modelIndicator.textContent = `Model: ${currentModelId || "Unknown"}`;
   }
 
   isAdOverlayVisible = true;
@@ -287,7 +331,7 @@ async function extractFrames(videoElement, numFrames = REQUIRED_FRAMES) {
     return null;
   }
 
-  debugLog("Extracting frames");
+  debugLog(`Extracting ${numFrames} frames`);
 
   // Create canvas for frame extraction
   const canvas = document.createElement("canvas");
@@ -300,7 +344,8 @@ async function extractFrames(videoElement, numFrames = REQUIRED_FRAMES) {
   try {
     const frames = [];
 
-    // Extract frames sequentially
+    // For standard CNN (numFrames = 1), we only need one frame
+    // For temporal CNN (numFrames > 1), we need multiple frames
     for (let i = 0; i < numFrames; i++) {
       // Draw current video frame to canvas
       ctx.drawImage(videoElement, 0, 0, FRAME_SIZE, FRAME_SIZE);
@@ -315,7 +360,7 @@ async function extractFrames(videoElement, numFrames = REQUIRED_FRAMES) {
 
       // In a real implementation with actual sequential frames,
       // we might wait for the next frame or sample frames at specific intervals
-      // For now, we'll just extract the same frame multiple times
+      // For now, we'll just extract the same frame multiple times if needed
       await new Promise((resolve) => setTimeout(resolve, 5));
     }
 
@@ -354,8 +399,8 @@ async function processCurrentVideo() {
   processingFrames = true;
 
   try {
-    // Extract frames from video
-    const frames = await extractFrames(currentVideoElement);
+    // Extract frames from video - use the REQUIRED_FRAMES which is updated based on model
+    const frames = await extractFrames(currentVideoElement, REQUIRED_FRAMES);
 
     if (!frames) {
       debugLog("Failed to extract frames");
@@ -393,7 +438,11 @@ async function processCurrentVideo() {
 
     if (result.success) {
       lastProbability = result.probability;
-      debugLog(`Ad probability: ${(result.probability * 100).toFixed(2)}%`);
+      debugLog(
+        `Ad probability: ${(result.probability * 100).toFixed(2)}% (Model: ${
+          result.modelId
+        })`
+      );
 
       // Add to probability history
       updateProbabilityHistory(result.probability);
@@ -417,6 +466,23 @@ async function processCurrentVideo() {
     console.error("Error processing video:", error);
   } finally {
     processingFrames = false;
+  }
+}
+
+// Change the current model
+function changeModel(modelId) {
+  debugLog(`Changing model to: ${modelId}`);
+
+  if (isSandboxReady && sandboxFrame) {
+    sandboxFrame.contentWindow.postMessage(
+      {
+        type: "CHANGE_MODEL",
+        modelId: modelId,
+      },
+      "*"
+    );
+  } else {
+    debugLog("Cannot change model: sandbox not ready");
   }
 }
 
@@ -546,21 +612,31 @@ function initialize() {
         // Restart detection if enabled
         startDetection(currentVideoElement);
       }
+    } else if (message.type === "CHANGE_MODEL") {
+      // Handle model change request
+      if (message.modelId && message.modelId !== currentModelId) {
+        changeModel(message.modelId);
+      }
     }
   });
 
   // Load saved settings
-  chrome.storage.local.get(["debug", "enabled"], (result) => {
-    if (result.debug !== undefined) {
-      DEBUG = result.debug;
-      debugLog("Debug mode loaded from settings:", DEBUG);
-    }
+  chrome.storage.local.get(
+    ["debug", "enabled", "selectedModelId"],
+    (result) => {
+      if (result.debug !== undefined) {
+        DEBUG = result.debug;
+        debugLog("Debug mode loaded from settings:", DEBUG);
+      }
 
-    if (result.enabled !== undefined) {
-      ENABLED = result.enabled;
-      debugLog("Enabled state loaded from settings:", ENABLED);
+      if (result.enabled !== undefined) {
+        ENABLED = result.enabled;
+        debugLog("Enabled state loaded from settings:", ENABLED);
+      }
+
+      // Current model ID is loaded when sandbox is ready
     }
-  });
+  );
 }
 
 // Start initialization

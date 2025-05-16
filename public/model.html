@@ -39,9 +39,7 @@
         <div class="log-entry">Ad Detector Sandbox initialized</div>
     </div>
     
-    <!-- Our ad detection model handler -->
-    <script src="ad-detector.js"></script>
-    
+    <!-- Helper for logging -->
     <script>
         // Add a helper for logging
         function log(message) {
@@ -56,6 +54,20 @@
         
         // Initial log entry
         log('Sandbox page loaded');
+    </script>
+    
+    <!-- First load model configurations -->
+    <script src="model-config.js"></script>
+    
+    <!-- Then load our detector script -->
+    <script src="ad-detector.js"></script>
+    
+    <script>
+        // Log available models
+        log(`Available models: ${window.MODEL_CONFIGS.length}`);
+        window.MODEL_CONFIGS.forEach(model => {
+            log(`- ${model.name} (${model.id}): ${model.frameCount} frame(s)`);
+        });
     </script>
 </body>
 </html>
