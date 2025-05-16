@@ -5,6 +5,7 @@
 
 # production
 /build
+/public/assets/models*
 
 # misc
 .DS_Store
