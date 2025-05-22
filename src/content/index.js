@@ -432,7 +432,9 @@ async function processCurrentVideo() {
       }, 5000);
     });
 
-    // Send frames to sandbox
+    // Keep track of the start time
+    const processingStartTime = performance.now();
+
     sandboxFrame.contentWindow.postMessage(
       {
         type: "PROCESS_FRAMES",
@@ -445,12 +447,21 @@ async function processCurrentVideo() {
     // Wait for result
     const result = await resultPromise;
 
+    // Keep track of the end time
+    const processingEndTime = performance.now();
+
+    // Calculate the total duration
+    const totalProcessingTime = processingEndTime - processingStartTime;
+
     if (result.success) {
       lastProbability = result.probability;
       debugLog(
-        `Ad probability: ${(result.probability * 100).toFixed(2)}% (Model: ${
-          result.modelId
-        })`
+        `Ad probability: ${(result.probability * 100).toFixed(2)}% | ` +
+          `Inference: ${
+            result.inferenceTime ? result.inferenceTime.toFixed(2) : "N/A"
+          }ms | ` +
+          `Total: ${totalProcessingTime.toFixed(2)}ms` +
+          `${result.modelId ? ` (Model: ${result.modelId})` : ""}`
       );
 
       // Add to probability history

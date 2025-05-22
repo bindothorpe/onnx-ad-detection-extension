@@ -142,8 +142,15 @@ async function processFrames(frames, requestId) {
     const feeds = {};
     feeds[session.inputNames[0]] = inputTensor;
 
+    // Keep track of the start time
+    const inferenceStartTime = performance.now();
     // Run inference
     const results = await session.run(feeds);
+    // Keep track of the end time
+    const inferenceEndTime = performance.now();
+
+    // Calculate the inference duration
+    const inferenceTime = inferenceEndTime - inferenceStartTime;
 
     // Get output data (probability that the content is an advertisement)
     const outputTensor = results[session.outputNames[0]];
@@ -156,6 +163,12 @@ async function processFrames(frames, requestId) {
       probability = 1 / (1 + Math.exp(-adLogit)); // Apply sigmoid
     }
 
+    console.log(
+      `[Ad Detector Sandbox] Inference completed in ${inferenceTime.toFixed(
+        2
+      )}ms`
+    );
+
     return {
       type: "INFERENCE_RESULT",
       requestId: requestId,
@@ -163,6 +176,7 @@ async function processFrames(frames, requestId) {
       probability: probability,
       isAd: probability >= currentModelConfig.defaultThreshold,
       modelId: currentModelId,
+      inferenceTime: inferenceTime,
     };
   } catch (error) {
     console.error("Error during inference:", error);
