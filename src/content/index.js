@@ -101,6 +101,11 @@ function handleSandboxMessage(event) {
       break;
 
     case "INFERENCE_RESULT":
+      // Check if extension is still enabled before processing results
+      if (!ENABLED) {
+        return;
+      }
+
       const requestId = message.requestId;
       const callback = pendingRequests.get(requestId);
 
@@ -278,7 +283,7 @@ function showAdOverlay(videoElement, probability) {
 function hideAdOverlay() {
   const overlay = document.getElementById("ad-detector-overlay");
   if (overlay) {
-    overlay.style.display = "none";
+    overlay.remove(); // Remove from DOM instead of just hiding
   }
   isAdOverlayVisible = false;
 }
@@ -393,6 +398,10 @@ function normalizeFrameData(data) {
 
 // Process video frames with the model
 async function processCurrentVideo() {
+  debugLog(
+    `processCurrentVideo called - ENABLED: ${ENABLED}, isModelLoaded: ${isModelLoaded}, currentVideoElement: ${!!currentVideoElement}, processingFrames: ${processingFrames}`
+  );
+
   if (!ENABLED || !isModelLoaded || !currentVideoElement || processingFrames)
     return;
 
@@ -495,14 +504,24 @@ function startDetection(videoElement) {
   // Stop previous detection if running
   stopDetection();
 
+  debugLog("Past stopDetection();");
+
   // Set current video element
   currentVideoElement = videoElement;
+
+  debugLog(!!currentVideoElement);
 
   // Start regular frame processing
   detectionInterval = setInterval(() => {
     if (videoElement.paused || videoElement.ended) return;
     processCurrentVideo();
   }, FRAME_INTERVAL);
+
+  debugLog(
+    `Detection interval started: ${!!detectionInterval}, video paused: ${
+      videoElement.paused
+    }, video ended: ${videoElement.ended}`
+  );
 
   // Set up event listeners
   videoElement.addEventListener("pause", onVideoPause);
@@ -527,7 +546,6 @@ function onVideoSeeked() {
   processCurrentVideo(); // Process immediately after seeking
 }
 
-// Stop detection
 function stopDetection() {
   if (!currentVideoElement) return;
 
@@ -547,12 +565,21 @@ function stopDetection() {
   // Hide overlay
   hideAdOverlay();
 
+  // Reset processing state
+  processingFrames = false;
+
   // Reset state
   currentVideoElement = null;
 }
 
 // Find and monitor YouTube video
 function findYouTubeVideo() {
+  // Don't look for videos if extension is disabled
+  if (!ENABLED) {
+    debugLog("Extension disabled, not looking for video");
+    return false;
+  }
+
   debugLog("Looking for YouTube video");
 
   const videoElement = document.querySelector("video.html5-main-video");
@@ -581,7 +608,11 @@ function initialize() {
 
   // Set up mutation observer to detect new videos
   const observer = new MutationObserver((mutations) => {
-    if (!currentVideoElement || currentVideoElement.parentNode === null) {
+    // Only look for videos if extension is enabled
+    if (
+      ENABLED &&
+      (!currentVideoElement || currentVideoElement.parentNode === null)
+    ) {
       findYouTubeVideo();
     }
   });
@@ -602,15 +633,13 @@ function initialize() {
       debugLog("Extension enabled state updated:", ENABLED);
 
       if (!ENABLED) {
-        // Clean up if disabled
-        hideAdOverlay();
-        if (detectionInterval) {
-          clearInterval(detectionInterval);
-          detectionInterval = null;
-        }
-      } else if (currentVideoElement) {
-        // Restart detection if enabled
-        startDetection(currentVideoElement);
+        // Clean up if disabled - use stopDetection for complete cleanup
+        stopDetection();
+        // Clear any pending inference requests
+        pendingRequests.clear();
+      } else {
+        // Restart detection if enabled - find video element again
+        findYouTubeVideo();
       }
     } else if (message.type === "CHANGE_MODEL") {
       // Handle model change request
