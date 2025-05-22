@@ -147,7 +147,14 @@ async function processFrames(frames, requestId) {
 
     // Get output data (probability that the content is an advertisement)
     const outputTensor = results[session.outputNames[0]];
-    const probability = parseFloat(outputTensor.data[0]);
+    let probability;
+
+    if (currentModelConfig.type === "temporal") {
+      probability = parseFloat(outputTensor.data[0]);
+    } else {
+      const adLogit = parseFloat(outputTensor.data[1]);
+      probability = 1 / (1 + Math.exp(-adLogit)); // Apply sigmoid
+    }
 
     return {
       type: "INFERENCE_RESULT",
