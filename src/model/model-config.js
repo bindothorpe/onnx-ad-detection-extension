@@ -10,7 +10,7 @@ window.MODEL_CONFIGS = [
     type: "temporal",
     frameCount: 5,
     description: "Analyzes 5 consecutive frames for temporal patterns in ads",
-    defaultThreshold: 0.5,
+    defaultThreshold: 0.8,
   },
   {
     id: "resnet18",
@@ -19,7 +19,7 @@ window.MODEL_CONFIGS = [
     type: "standard",
     frameCount: 1,
     description: "Analyzes single frames for visual ad patterns",
-    defaultThreshold: 0.5,
+    defaultThreshold: 0.8,
   },
   {
     id: "resnet50",
@@ -28,7 +28,7 @@ window.MODEL_CONFIGS = [
     type: "standard",
     frameCount: 1,
     description: "Analyzes single frames for visual ad patterns",
-    defaultThreshold: 0.5,
+    defaultThreshold: 0.8,
   },
   {
     id: "efficientnet-v2-s",
@@ -37,7 +37,7 @@ window.MODEL_CONFIGS = [
     type: "standard",
     frameCount: 1,
     description: "Analyzes single frames for visual ad patterns",
-    defaultThreshold: 0.5,
+    defaultThreshold: 0.8,
   },
   {
     id: "efficientnet-v2-m",
@@ -46,7 +46,7 @@ window.MODEL_CONFIGS = [
     type: "standard",
     frameCount: 1,
     description: "Analyzes single frames for visual ad patterns",
-    defaultThreshold: 0.5,
+    defaultThreshold: 0.8,
   },
   {
     id: "efficientnet-v2-l",
@@ -55,7 +55,7 @@ window.MODEL_CONFIGS = [
     type: "standard",
     frameCount: 1,
     description: "Analyzes single frames for visual ad patterns",
-    defaultThreshold: 0.5,
+    defaultThreshold: 0.8,
   },
   {
     id: "mobilenet-v3-small",
@@ -64,7 +64,7 @@ window.MODEL_CONFIGS = [
     type: "standard",
     frameCount: 1,
     description: "Analyzes single frames for visual ad patterns",
-    defaultThreshold: 0.5,
+    defaultThreshold: 0.8,
   },
 ];
 

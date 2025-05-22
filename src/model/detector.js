@@ -80,6 +80,7 @@ async function loadModel(modelId = window.DEFAULT_MODEL_ID) {
         success: true,
         modelId: currentModelId,
         frameCount: currentModelConfig.frameCount,
+        defaultThreshold: currentModelConfig.defaultThreshold || 0.5,
       },
       "*"
     );
@@ -94,6 +95,9 @@ async function loadModel(modelId = window.DEFAULT_MODEL_ID) {
         success: false,
         error: error.message,
         modelId: currentModelId,
+        defaultThreshold: currentModelConfig
+          ? currentModelConfig.defaultThreshold || 0.5
+          : 0.5,
       },
       "*"
     );
@@ -210,6 +214,7 @@ window.addEventListener("message", async (event) => {
             success: true,
             modelId: currentModelId,
             frameCount: currentModelConfig.frameCount,
+            defaultThreshold: currentModelConfig.defaultThreshold || 0.5,
           },
           "*"
         );
@@ -233,6 +238,7 @@ window.addEventListener("message", async (event) => {
             success: false,
             error: "Invalid frames data",
             modelId: currentModelId,
+            inferenceTime: null,
           },
           "*"
         );

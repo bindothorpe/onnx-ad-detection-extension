@@ -7,7 +7,6 @@ let ENABLED = true; // Extension enabled status (can be toggled)
 const FRAME_INTERVAL = 1000; // Process frames every 1 second
 let REQUIRED_FRAMES = 5; // Temporal window size from model - now changeable based on model
 const FRAME_SIZE = 224; // Target frame size (224x224)
-const AD_PROBABILITY_THRESHOLD = 0.2; // Threshold for ad detection
 
 // State tracking
 let isSandboxReady = false;
@@ -22,11 +21,13 @@ let detectionInterval = null;
 let lastProbability = 0;
 let currentModelId = null;
 
+let AD_PROBABILITY_THRESHOLD = 0.2; // Threshold for ad detection (will be updated by model config)
+
 // Advanced detection tracking
+const PROBABILITY_HISTORY = [];
 const PROBABILITY_HISTORY_SIZE = 5; // Number of recent probabilities to keep
-const PROBABILITY_THRESHOLD_HIGH = 0.25; // High confidence threshold
-const PROBABILITY_THRESHOLD_LOW = 0.2; // Low confidence threshold
-const PROBABILITY_HISTORY = []; // Array to store recent probability values
+let PROBABILITY_THRESHOLD_HIGH = 0.25; // High confidence threshold (will be updated by model config)
+let PROBABILITY_THRESHOLD_LOW = 0.2; // Low confidence threshold (will be updated by model config)
 
 // Debug logging
 function debugLog(...args) {
@@ -93,6 +94,17 @@ function handleSandboxMessage(event) {
           REQUIRED_FRAMES = message.frameCount;
           debugLog(
             `Updated required frames to ${REQUIRED_FRAMES} for model ${currentModelId}`
+          );
+        }
+
+        // Update thresholds based on model's defaultThreshold
+        if (message.defaultThreshold !== undefined) {
+          AD_PROBABILITY_THRESHOLD = message.defaultThreshold;
+          PROBABILITY_THRESHOLD_HIGH = message.defaultThreshold + 0.05;
+          PROBABILITY_THRESHOLD_LOW = message.defaultThreshold - 0.05;
+          debugLog(
+            `Updated thresholds for model ${currentModelId}: ` +
+              `Main=${AD_PROBABILITY_THRESHOLD}, High=${PROBABILITY_THRESHOLD_HIGH}, Low=${PROBABILITY_THRESHOLD_LOW}`
           );
         }
       } else {
