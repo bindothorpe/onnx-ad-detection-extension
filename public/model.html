@@ -1,73 +1,114 @@
 <!DOCTYPE html>
 <html>
-<head>
+  <head>
     <title>Ad Detector Model</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 10px;
-            background-color: #f5f5f5;
-        }
-        #status {
-            padding: 10px;
-            border-radius: 4px;
-            background-color: #e0e0e0;
-            margin-bottom: 10px;
-        }
-        .log-container {
-            height: 200px;
-            overflow-y: auto;
-            border: 1px solid #ccc;
-            padding: 8px;
-            background-color: #fff;
-            font-family: monospace;
-            font-size: 12px;
-        }
-        .log-entry {
-            margin: 2px 0;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 2px;
-        }
+      body {
+        font-family: Arial, sans-serif;
+        margin: 10px;
+        background-color: #f5f5f5;
+      }
+      #status {
+        padding: 10px;
+        border-radius: 4px;
+        background-color: #e0e0e0;
+        margin-bottom: 10px;
+      }
+      .log-container {
+        height: 200px;
+        overflow-y: auto;
+        border: 1px solid #ccc;
+        padding: 8px;
+        background-color: #fff;
+        font-family: monospace;
+        font-size: 12px;
+      }
+      .log-entry {
+        margin: 2px 0;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 2px;
+      }
     </style>
-    <!-- ONNX Runtime Web -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/onnxruntime-web/1.14.0/ort.min.js"></script>
-</head>
-<body>
+  </head>
+  <body>
     <div id="status">Initializing ad detection model...</div>
-    
+
     <div class="log-container" id="log">
-        <div class="log-entry">Ad Detector Sandbox initialized</div>
+      <div class="log-entry">Ad Detector Sandbox initialized</div>
     </div>
-    
+
     <!-- Helper for logging -->
     <script>
-        // Add a helper for logging
-        function log(message) {
-            const logContainer = document.getElementById('log');
-            const entry = document.createElement('div');
-            entry.className = 'log-entry';
-            entry.textContent = message;
-            logContainer.appendChild(entry);
-            logContainer.scrollTop = logContainer.scrollHeight;
-            console.log('[Ad Detector Sandbox]', message);
-        }
-        
-        // Initial log entry
-        log('Sandbox page loaded');
+      // Add a helper for logging
+      function log(message) {
+        const logContainer = document.getElementById("log");
+        const entry = document.createElement("div");
+        entry.className = "log-entry";
+        entry.textContent = message;
+        logContainer.appendChild(entry);
+        logContainer.scrollTop = logContainer.scrollHeight;
+        console.log("[Ad Detector Sandbox]", message);
+      }
+
+      // Initial log entry
+      log("Sandbox page loaded");
     </script>
-    
-    <!-- First load model configurations -->
-    <script src="model-config.js"></script>
-    
-    <!-- Then load our detector script -->
-    <script src="ad-detector.js"></script>
-    
-    <script>
-        // Log available models
-        log(`Available models: ${window.MODEL_CONFIGS.length}`);
-        window.MODEL_CONFIGS.forEach(model => {
-            log(`- ${model.name} (${model.id}): ${model.frameCount} frame(s)`);
+
+    <script type="module">
+      const ORT_GPU =
+        "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/ort.webgpu.min.js";
+      const ORT_CPU =
+        "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/ort.min.js";
+
+      function loadScript(src) {
+        return new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = src;
+          script.onload = () => resolve();
+          script.onerror = () =>
+            reject(new Error(`Failed to load script: ${src}`));
+          document.head.appendChild(script);
         });
+      }
+
+      async function init() {
+        let ortBackend = "cpu";
+
+        if (navigator.gpu) {
+          log("WebGPU is supported, loading GPU backend...");
+          await loadScript(ORT_GPU);
+          ortBackend = "webgpu";
+        } else {
+          log("WebGPU not supported, loading CPU backend...");
+          await loadScript(ORT_CPU);
+        }
+
+        // Make ort global (if needed) and initialize model
+        log(`ONNX Runtime loaded with ${ortBackend} backend`);
+
+        // Set backend (if required by ort API)
+        if (ortBackend === "webgpu") {
+          ort.env.wasm.wasmPaths =
+            "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/";
+        }
+
+        // Now load your detector
+        await import("./model-config.js");
+        await import("./ad-detector.js");
+      }
+
+      init().catch((err) => {
+        log(`Error initializing ONNX Runtime: ${err.message}`);
+        console.error(err);
+      });
     </script>
-</body>
+
+    <script>
+      // Log available models
+      log(`Available models: ${window.MODEL_CONFIGS.length}`);
+      window.MODEL_CONFIGS.forEach((model) => {
+        log(`- ${model.name} (${model.id}): ${model.frameCount} frame(s)`);
+      });
+    </script>
+  </body>
 </html>
