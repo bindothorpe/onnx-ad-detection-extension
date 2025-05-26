@@ -341,14 +341,11 @@ function getSmoothedPrediction() {
   return { isAd, confidence: avgProbability };
 }
 
-// Extract frames from video element
-async function extractFrames(videoElement, numFrames = REQUIRED_FRAMES) {
+function extractSingleFrame(videoElement) {
   if (!videoElement || videoElement.readyState < 2) {
     // HAVE_CURRENT_DATA
     return null;
   }
-
-  debugLog(`Extracting ${numFrames} frames`);
 
   // Create canvas for frame extraction
   const canvas = document.createElement("canvas");
@@ -359,33 +356,54 @@ async function extractFrames(videoElement, numFrames = REQUIRED_FRAMES) {
   canvas.height = FRAME_SIZE;
 
   try {
-    const frames = [];
+    // Draw current video frame to canvas
+    ctx.drawImage(videoElement, 0, 0, FRAME_SIZE, FRAME_SIZE);
 
-    // For standard CNN (numFrames = 1), we only need one frame
-    // For temporal CNN (numFrames > 1), we need multiple frames
-    for (let i = 0; i < numFrames; i++) {
-      // Draw current video frame to canvas
-      ctx.drawImage(videoElement, 0, 0, FRAME_SIZE, FRAME_SIZE);
+    // Get image data
+    const imageData = ctx.getImageData(0, 0, FRAME_SIZE, FRAME_SIZE);
 
-      // Get image data
-      const imageData = ctx.getImageData(0, 0, FRAME_SIZE, FRAME_SIZE);
+    // Normalize pixel data to [-1, 1] range (matching model training normalization)
+    const normalizedFrame = normalizeFrameData(imageData.data);
 
-      // Normalize pixel data to [-1, 1] range (matching model training normalization)
-      const normalizedFrame = normalizeFrameData(imageData.data);
-
-      frames.push(normalizedFrame);
-
-      // In a real implementation with actual sequential frames,
-      // we might wait for the next frame or sample frames at specific intervals
-      // For now, we'll just extract the same frame multiple times if needed
-      await new Promise((resolve) => setTimeout(resolve, 5));
-    }
-
-    return frames;
+    return normalizedFrame;
   } catch (error) {
-    console.error("Frame extraction error:", error);
+    console.error("Single frame extraction error:", error);
     return null;
   }
+}
+
+async function collectFrames(videoElement, numFrames = REQUIRED_FRAMES) {
+  debugLog(`Collecting ${numFrames} frames`);
+
+  // For single frame models, extract immediately
+  if (numFrames === 1) {
+    const frame = extractSingleFrame(videoElement);
+    return frame ? [frame] : null;
+  }
+
+  // For multi-frame models, collect frames over time
+  const frames = [];
+  const FRAME_INTERVAL_MS = 50; // 50ms between frame captures
+
+  for (let i = 0; i < numFrames; i++) {
+    const frame = extractSingleFrame(videoElement);
+
+    if (!frame) {
+      debugLog(`Failed to extract frame ${i + 1}/${numFrames}`);
+      return null;
+    }
+
+    frames.push(frame);
+    debugLog(`Collected frame ${i + 1}/${numFrames}`);
+
+    // Wait before capturing next frame (except for the last frame)
+    if (i < numFrames - 1) {
+      await new Promise((resolve) => setTimeout(resolve, FRAME_INTERVAL_MS));
+    }
+  }
+
+  debugLog(`Successfully collected ${frames.length} frames`);
+  return frames;
 }
 
 // Normalize frame data to match model input requirements
@@ -420,11 +438,11 @@ async function processCurrentVideo() {
   processingFrames = true;
 
   try {
-    // Extract frames from video - use the REQUIRED_FRAMES which is updated based on model
-    const frames = await extractFrames(currentVideoElement, REQUIRED_FRAMES);
+    // Collect frames from video - use the REQUIRED_FRAMES which is updated based on model
+    const frames = await collectFrames(currentVideoElement, REQUIRED_FRAMES);
 
     if (!frames) {
-      debugLog("Failed to extract frames");
+      debugLog("Failed to collect frames");
       return;
     }
 
