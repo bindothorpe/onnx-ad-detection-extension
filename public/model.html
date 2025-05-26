@@ -95,19 +95,17 @@
         // Now load your detector
         await import("./model-config.js");
         await import("./ad-detector.js");
+
+        // Log available models
+        log(`Available models: ${window.MODEL_CONFIGS.length}`);
+        window.MODEL_CONFIGS.forEach((model) => {
+          log(`- ${model.name} (${model.id}): ${model.frameCount} frame(s)`);
+        });
       }
 
       init().catch((err) => {
         log(`Error initializing ONNX Runtime: ${err.message}`);
         console.error(err);
-      });
-    </script>
-
-    <script>
-      // Log available models
-      log(`Available models: ${window.MODEL_CONFIGS.length}`);
-      window.MODEL_CONFIGS.forEach((model) => {
-        log(`- ${model.name} (${model.id}): ${model.frameCount} frame(s)`);
       });
     </script>
   </body>
