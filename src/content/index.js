@@ -5,7 +5,7 @@
 let DEBUG = true; // Debug mode (can be toggled)
 let ENABLED = true; // Extension enabled status (can be toggled)
 const FRAME_INTERVAL = 1000; // Process frames every 1 second
-let REQUIRED_FRAMES = 5; // Temporal window size from model - now changeable based on model
+let REQUIRED_FRAMES = 5; // Temporal window size from model - default to 5
 const FRAME_SIZE = 224; // Target frame size (224x224)
 
 // State tracking
@@ -21,13 +21,13 @@ let detectionInterval = null;
 let lastProbability = 0;
 let currentModelId = null;
 
-let AD_PROBABILITY_THRESHOLD = 0.2; // Threshold for ad detection (will be updated by model config)
+let AD_PROBABILITY_THRESHOLD = 0.5; // Fallback ad probability threshold
 
 // Advanced detection tracking
 const PROBABILITY_HISTORY = [];
-const PROBABILITY_HISTORY_SIZE = 5; // Number of recent probabilities to keep
-let PROBABILITY_THRESHOLD_HIGH = 0.25; // High confidence threshold (will be updated by model config)
-let PROBABILITY_THRESHOLD_LOW = 0.2; // Low confidence threshold (will be updated by model config)
+const PROBABILITY_HISTORY_SIZE = 3; // Number of recent probabilities to keep
+let PROBABILITY_THRESHOLD_HIGH = 0.5; // Fallback high confidence threshold
+let PROBABILITY_THRESHOLD_LOW = 0.45; // Fallback low confidence threshold
 
 // Debug logging
 function debugLog(...args) {
@@ -100,7 +100,7 @@ function handleSandboxMessage(event) {
         // Update thresholds based on model's defaultThreshold
         if (message.defaultThreshold !== undefined) {
           AD_PROBABILITY_THRESHOLD = message.defaultThreshold;
-          PROBABILITY_THRESHOLD_HIGH = message.defaultThreshold + 0.05;
+          PROBABILITY_THRESHOLD_HIGH = message.defaultThreshold;
           PROBABILITY_THRESHOLD_LOW = message.defaultThreshold - 0.05;
           debugLog(
             `Updated thresholds for model ${currentModelId}: ` +
@@ -227,19 +227,6 @@ function createAdOverlay(videoElement) {
   modelIndicator.textContent = `Model: ${currentModelId || "Unknown"}`;
   overlay.appendChild(modelIndicator);
 
-  // Add "Powered by" badge
-  const badge = document.createElement("div");
-  badge.style.position = "absolute";
-  badge.style.top = "50px";
-  badge.style.right = "10px";
-  badge.style.backgroundColor = "rgba(0, 0, 0, 0.7)";
-  badge.style.color = "rgba(255, 255, 255, 0.7)";
-  badge.style.padding = "4px 8px";
-  badge.style.borderRadius = "4px";
-  badge.style.fontSize = "10px";
-  badge.textContent = "Powered by Ad Detector";
-  overlay.appendChild(badge);
-
   // Add to container
   videoContainer.appendChild(overlay);
 
@@ -266,9 +253,9 @@ function showAdOverlay(videoElement, probability) {
 
     // Color coding based on confidence level
     let color;
-    if (probability > 0.3) {
+    if (probability > 0.9) {
       color = "#ff4d4d"; // High confidence (red)
-    } else if (probability > 0.2) {
+    } else if (probability > 0.85) {
       color = "#ff9933"; // Medium-high confidence (orange)
     } else {
       color = "#ffcc00"; // Medium confidence (yellow)
@@ -295,7 +282,7 @@ function showAdOverlay(videoElement, probability) {
 function hideAdOverlay() {
   const overlay = document.getElementById("ad-detector-overlay");
   if (overlay) {
-    overlay.remove(); // Remove from DOM instead of just hiding
+    overlay.remove();
   }
   isAdOverlayVisible = false;
 }
@@ -307,7 +294,7 @@ function updateProbabilityHistory(probability) {
 
   // Keep history at proper size
   if (PROBABILITY_HISTORY.length > PROBABILITY_HISTORY_SIZE) {
-    PROBABILITY_HISTORY.shift(); // Remove oldest value
+    PROBABILITY_HISTORY.shift(); // This removes the oldest value
   }
 }
 
@@ -326,7 +313,7 @@ function getSmoothedPrediction() {
     PROBABILITY_HISTORY.reduce((sum, prob) => sum + prob, 0) /
     PROBABILITY_HISTORY.length;
 
-  // Apply smoothing logic with hysteresis
+  // Apply smoothing logic
   // This prevents flickering between ad/non-ad states
   let isAd;
 
@@ -349,7 +336,6 @@ function extractSingleFrame(videoElement) {
 
   // Create canvas for frame extraction
   const canvas = document.createElement("canvas");
-  // Set willReadFrequently attribute for better performance
   canvas.willReadFrequently = true;
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
   canvas.width = FRAME_SIZE;
@@ -578,13 +564,13 @@ function onVideoPause() {
 // Handle video play event
 function onVideoPlay() {
   debugLog("Video playing");
-  processCurrentVideo(); // Process immediately when video starts
+  processCurrentVideo();
 }
 
 // Handle video seek event
 function onVideoSeeked() {
   debugLog("Video seeked");
-  processCurrentVideo(); // Process immediately after seeking
+  processCurrentVideo();
 }
 
 function stopDetection() {
@@ -703,8 +689,6 @@ function initialize() {
         ENABLED = result.enabled;
         debugLog("Enabled state loaded from settings:", ENABLED);
       }
-
-      // Current model ID is loaded when sandbox is ready
     }
   );
 }

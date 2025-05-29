@@ -164,7 +164,8 @@ async function processFrames(frames, requestId) {
       probability = parseFloat(outputTensor.data[0]);
     } else {
       const adLogit = parseFloat(outputTensor.data[1]);
-      probability = 1 / (1 + Math.exp(-adLogit)); // Apply sigmoid
+      // Apply sigmoid
+      probability = 1 / (1 + Math.exp(-adLogit));
     }
 
     console.log(
@@ -196,7 +197,7 @@ async function processFrames(frames, requestId) {
 
 // Setup message listener for communication with content script
 window.addEventListener("message", async (event) => {
-  // Security check - only accept messages from parent window
+  // Only accept messages from parent window
   if (event.source !== window.parent) return;
 
   const message = event.data;

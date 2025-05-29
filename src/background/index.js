@@ -22,7 +22,7 @@ chrome.runtime.onInstalled.addListener(async () => {
 
   // Initialize default model if not set - using hard-coded default
   if (settings.selectedModelId === undefined) {
-    await chrome.storage.local.set({ selectedModelId: "temporal-cnn" });
+    await chrome.storage.local.set({ selectedModelId: "custom" });
   }
 });
 
@@ -62,15 +62,3 @@ async function propagateModelChangeToTabs(modelId) {
     console.error("Error propagating model change:", error);
   }
 }
-
-// Optional: Add event listeners for tab updates to reset state
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  // Make sure tab.url exists before checking if it includes youtube.com
-  if (
-    changeInfo.status === "complete" &&
-    tab.url &&
-    tab.url.includes("youtube.com")
-  ) {
-    // Tab has been fully loaded, we could notify the content script here if needed
-  }
-});
